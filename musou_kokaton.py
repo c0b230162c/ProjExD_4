@@ -125,6 +125,7 @@ class Bomb(pg.sprite.Sprite):
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height/2
         self.speed = 6
+        self.state = "normal"
 
     def update(self):
         """
@@ -220,6 +221,27 @@ class Enemy(pg.sprite.Sprite):
             self.vy = 0
             self.state = "stop"
         self.rect.centery += self.vy
+        
+
+class EMP(pg.sprite.Sprite):
+    """
+    EMPの発動に関するクラス
+    """
+    def __init__(self, emy: Enemy, bomb: Bomb, screen: pg.Surface):
+        super().__init__()
+        self.image = pg.Surface((WIDTH,HEIGHT))
+        pg.draw.rect(self.image, (128, 128, 0), (0, 0, WIDTH, HEIGHT))
+        self.rect = self.image.get_rect()
+        self.image.set_alpha(128)
+        self.emy = emy
+        self.screen.blit(self.image, self.rect)
+        for a in emy:
+            a.interval = float('inf')
+            a.image = pg.transform.laplacian(a.image)
+            a.image.set_colorkey((0, 0, 0))
+            a.image.set_alpha()
+        time.sleep(0.05)
+        self.kill()
 
 
 class Score:
@@ -282,11 +304,22 @@ def main():
             score.value += 1  # 1点アップ
 
         if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
-            bird.change_img(8, screen) # こうかとん悲しみエフェクト
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
+            for bomb in bombs:
+                if bomb.state == "inactive": # stateをinactiveに変更
+                    continue
+                else:
+                    bird.change_img(8, screen) # こうかとん悲しみエフェクト
+                    score.update(screen)
+                    pg.display.update()
+                    time.sleep(2)
+                    return
+                
+        if event.type == pg.KEYDOWN and score.value > 20 and event.key == pg.K_e: # eキーを押したときにEMPを発動、またscoreが20より大(score > 20)
+            EMP(emys, bombs, screen)
+            for b in bombs:
+                b.speed /= 2
+                b.state = 'inactive'
+            score.value -= 20
 
         bird.update(key_lst, screen)
         beams.update()
