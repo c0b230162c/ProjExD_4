@@ -72,10 +72,12 @@ class Bird(pg.sprite.Sprite):
         self.rect.center = xy
         self.speed = 10
 
+
         #追加機能4:無敵状態
         self.state = "normal"
         self.hyper_life = -1
             
+
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -111,6 +113,10 @@ class Bird(pg.sprite.Sprite):
         if self.hyper_life < 0:
             self.state = "normal"
         screen.blit(self.image, self.rect)
+        if key_lst[pg.K_LSHIFT]:
+            self.speed = 20
+        if not  key_lst[pg.K_LSHIFT]:
+            self.speed = 10
 
 
 class Bomb(pg.sprite.Sprite):
@@ -282,6 +288,7 @@ class NeoBeam:
             beam = Beam(self.bird, ang)
             beams.append(beam)
         return beams
+
 class Gravity(pg.sprite.Sprite):
     """
     画面全体を覆う重力場を発生させるクラス
@@ -299,6 +306,7 @@ class Gravity(pg.sprite.Sprite):
         screen.blit(self.image, self.rect)
         if self.life < 0:
             self.kill()
+
 
 
 def main():
@@ -339,12 +347,12 @@ def main():
                         #スペースキーのみなら、普通のビーム
                         beams.add(Beam(bird))
     
-    
 
             if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT and score.value >= 100:
                 bird.state = "hyper"
                 bird.hyper_life = 500
                 score.value -= 100
+
 
         screen.blit(bg_img, [0, 0])
 
@@ -408,7 +416,7 @@ def main():
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
-        emys.update()
+        emys.update() 
         emys.draw(screen)
         bombs.update()
         bombs.draw(screen)
