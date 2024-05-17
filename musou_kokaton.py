@@ -249,7 +249,7 @@ class Score:
     def __init__(self):
         self.font = pg.font.Font(None, 50)
         self.color = (0, 0, 255)
-        self.value = 0
+        self.value = 300
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         self.rect = self.image.get_rect()
         self.rect.center = 100, HEIGHT-50
@@ -402,12 +402,12 @@ def main():
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
-
-         #追加機能3,4のマージ
+        
+        #追加機能3,4のマージ
         if bird.state == "active":
             for bomb in bombs:
                 if len(pg.sprite.spritecollide(bird, [bomb], False)) != 0:
-                    if bomb.state == "inactive": 
+                    if bomb.state == "inactive":
                         bombs.remove(bomb)
                     elif bomb.state == "normal":
                         bird.change_img(8, screen) # こうかとん悲しみエフェクト
@@ -422,7 +422,7 @@ def main():
                 for bomb in pg.sprite.spritecollide(bird, bombs, True):
                     exps.add(Explosion(bomb, 50))  # 爆発エフェクト
                     score.value += 1  # 1点アップ
-
+        
 
         #追加機能2:重力場
         if event.type == pg.KEYDOWN and score.value > 200 and event.key == pg.K_RETURN:
