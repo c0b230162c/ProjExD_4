@@ -282,6 +282,23 @@ class NeoBeam:
             beam = Beam(self.bird, ang)
             beams.append(beam)
         return beams
+class Gravity(pg.sprite.Sprite):
+    """
+    画面全体を覆う重力場を発生させるクラス
+    """
+    def __init__(self, life: int):
+        super().__init__()
+        self.image = pg.Surface((WIDTH, HEIGHT))
+        pg.draw.rect(self.image, (0,0,0), (0,0,WIDTH,HEIGHT))
+        self.rect = self.image.get_rect()
+        self.image.set_alpha(128)
+        self.life = life
+    
+    def update(self, screen: pg.Surface):
+        self.life -= 1
+        screen.blit(self.image, self.rect)
+        if self.life < 0:
+            self.kill()
 
 
 def main():
@@ -295,6 +312,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    gravitys = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -347,6 +365,7 @@ def main():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
 
+
         #追加機能4:無敵状態
         if bird.state == "normal":
             if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
@@ -361,6 +380,29 @@ def main():
                 for bomb in pg.sprite.spritecollide(bird, bombs, True):
                     exps.add(Explosion(bomb, 50))  # 爆発エフェクト
                     score.value += 1  # 1点アップ
+
+
+        if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
+            bird.change_img(8, screen) # こうかとん悲しみエフェクト
+            score.update(screen)
+            pg.display.update()
+            time.sleep(2)
+            return
+        
+        if event.type == pg.KEYDOWN and score.value > 200 and event.key == pg.K_RETURN:
+            gravity = Gravity(400)
+            gravitys.add(gravity)
+            score.value -= 200  # 200点ダウン
+        
+        if gravitys:
+            gravity.update(screen)
+            for bomb in bombs:
+                bombs.remove(bomb)
+                exps.add(Explosion(bomb, 50))
+            for emy in emys:
+                emys.remove(emy)
+                exps.add(Explosion(emy, 50))
+                bird.change_img(6, screen)  # こうかとん喜びエフェクト
 
 
         bird.update(key_lst, screen)
