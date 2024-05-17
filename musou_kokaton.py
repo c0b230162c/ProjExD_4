@@ -4,7 +4,7 @@ import random
 import sys
 import time
 import pygame as pg
-
+import time
 
 WIDTH, HEIGHT = 1600, 900  # ゲームウィンドウの幅，高さ
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -71,13 +71,9 @@ class Bird(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = xy
         self.speed = 10
-
-
         #追加機能4:無敵状態
-        self.state = "normal"
+        self.state = "active"
         self.hyper_life = -1
-            
-
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -105,13 +101,12 @@ class Bird(pg.sprite.Sprite):
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
             self.image = self.imgs[self.dire]
-
         #追加機能4:無敵状態
         if self.state == "hyper":
             self.hyper_life -= 1
             self.image = pg.transform.laplacian(self.image)
         if self.hyper_life < 0:
-            self.state = "normal"
+            self.state = "active"
         screen.blit(self.image, self.rect)
         if key_lst[pg.K_LSHIFT]:
             self.speed = 20
@@ -143,6 +138,7 @@ class Bomb(pg.sprite.Sprite):
         self.rect.centerx = emy.rect.centerx
         self.rect.centery = emy.rect.centery+emy.rect.height/2
         self.speed = 6
+        self.state = "normal"
 
     def update(self):
         """
@@ -178,7 +174,6 @@ class Beam(pg.sprite.Sprite):
         self.rect.centerx = bird.rect.centerx+bird.rect.width*self.vx
         self.speed = 10
 
-        
     def update(self):
         """
         ビームを速度ベクトルself.vx, self.vyに基づき移動させる
@@ -276,7 +271,6 @@ class NeoBeam:
         self.bird = bird
         self.num = num
 
-
     def gen_beams(self):
         """
         beamインスタンスの生成
@@ -288,6 +282,7 @@ class NeoBeam:
             beam = Beam(self.bird, ang)
             beams.append(beam)
         return beams
+
 
 class Gravity(pg.sprite.Sprite):
     """
@@ -308,6 +303,36 @@ class Gravity(pg.sprite.Sprite):
             self.kill()
 
 
+class EMP(pg.sprite.Sprite):
+    """
+    電磁パルスに関するクラス
+    """
+    def __init__(self, emys : Enemy, bombs : Bomb, screen:pg.Surface):
+        """
+        EMPのSurfaceを生成
+        引数1 emys：emys
+        引数2 bombs：bombs
+        引数3 screen：Surface
+        """
+        super().__init__()
+        self.image = pg.Surface((WIDTH ,HEIGHT))
+        self.rect = self.image.get_rect()
+        self.image.fill((125, 125, 0))
+        self.image.set_alpha(200)
+        screen.blit(self.image, self.rect)
+        #敵の無効化
+        for enemy in emys:
+            enemy.interval = float("inf")
+            enemy.image = pg.transform.laplacian(enemy.image)
+            enemy.image.set_colorkey((0,0,0))
+        # 爆弾の無効化
+        for bomb in bombs:
+            bomb.speed = bomb.speed//2
+            bomb.state = "inactive"
+        pg.display.update()
+        time.sleep(0.05)
+        self.kill()
+
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -315,6 +340,7 @@ def main():
     bg_img = pg.image.load(f"fig/pg_bg.jpg")
     score = Score()
 
+    #グループを定義
     bird = Bird(3, (900, 400))
     bombs = pg.sprite.Group()
     beams = pg.sprite.Group()
@@ -326,16 +352,11 @@ def main():
     clock = pg.time.Clock()
     while True:
         key_lst = pg.key.get_pressed()
-        
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
-
-            
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_SPACE:
-                    "どうやらkey_modの方でないと複数入力が出来ないpo"
-                    "原因は不明だが、andでなく&でないと出来ない"
                     #スペース＆左シフトが入力された場合
                     if pg.key.get_mods() & pg.KMOD_LSHIFT:
                         #インスタンスの作成
@@ -346,14 +367,23 @@ def main():
                     else:
                         #スペースキーのみなら、普通のビーム
                         beams.add(Beam(bird))
-    
 
+            #追加機能4:無敵
             if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT and score.value >= 100:
                 bird.state = "hyper"
                 bird.hyper_life = 500
                 score.value -= 100
 
+            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+                beams.add(Beam(bird))
+            
+            #EMPの生成
+            if event.type == pg.KEYDOWN and event.key == pg.K_e and score.value > 20:
+                score.value -= 20
+                emp = EMP(emys, bombs, screen)
+                #emps.add(emp)
 
+        #Screenにbg_imgをビルド
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -372,36 +402,38 @@ def main():
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
+        
+        #追加機能3,4のマージ
+        if bird.state == "active":
+            if len(pg.sprite.spritecollide(bird, bombs, False)) != 0:
+                for bomb in bombs:
+                    if bomb.state == "inactive":
+                        bombs.remove(bomb)
+                    elif bomb.state == "normal":
+                        bird.change_img(8, screen) # こうかとん悲しみエフェクト
+                        score.update(screen)
+                        pg.display.update()
+                        time.sleep(2)
+                        return
 
-
-        #追加機能4:無敵状態
-        if bird.state == "normal":
-            if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
-                bird.change_img(8, screen) # こうかとん悲しみエフェクト
-                score.update(screen)
-                pg.display.update()
-                time.sleep(2)
-                return
-
+        #追加機能4:無敵
         if bird.state == "hyper":
+            print("a")
             for bomb in pg.sprite.groupcollide(bombs, [bird], False, False).keys():
+                print("aa")
                 for bomb in pg.sprite.spritecollide(bird, bombs, True):
+                    print("aaa")
                     exps.add(Explosion(bomb, 50))  # 爆発エフェクト
                     score.value += 1  # 1点アップ
-
-
-        if len(pg.sprite.spritecollide(bird, bombs, True)) != 0:
-            bird.change_img(8, screen) # こうかとん悲しみエフェクト
-            score.update(screen)
-            pg.display.update()
-            time.sleep(2)
-            return
         
+        print(bird.state)
+        #追加機能2:重力場
         if event.type == pg.KEYDOWN and score.value > 200 and event.key == pg.K_RETURN:
             gravity = Gravity(400)
             gravitys.add(gravity)
             score.value -= 200  # 200点ダウン
         
+        #追加機能2:重力場
         if gravitys:
             gravity.update(screen)
             for bomb in bombs:
@@ -411,7 +443,6 @@ def main():
                 emys.remove(emy)
                 exps.add(Explosion(emy, 50))
                 bird.change_img(6, screen)  # こうかとん喜びエフェクト
-
 
         bird.update(key_lst, screen)
         beams.update()
