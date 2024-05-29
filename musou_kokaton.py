@@ -11,6 +11,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 def check_bound(obj_rct:pg.Rect) -> tuple[bool, bool]:
+
+    
     """
     Rectの画面内外判定用の関数
     引数：こうかとんRect，または，爆弾Rect，またはビームRect
